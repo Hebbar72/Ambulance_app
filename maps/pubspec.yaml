@@ -34,6 +34,8 @@ dependencies:
   location: ^4.2.0
   mapmyindia_nearby_plugin: ^0.1.0
   fluttertoast: ^8.0.6
+  flutter_logs: ^2.0.6
+  
 
 
   # The following adds the Cupertino Icons font to your application.

@@ -3,6 +3,7 @@ import 'package:mapmyindia_gl/mapmyindia_gl.dart';
 import 'package:location/location.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'polyline.dart';
 
 void main() {
   runApp(MyApp());
@@ -37,12 +38,16 @@ class InterfaceState extends State<UserInterface> {
   late LatLng locVal;
   late double zoomVal;
   late Symbol start;
-  final String keyVal = 'hospital';
+  final String keyVal = 'Hospital';
   int start_set = 0;
   late Symbol stop;
   int stop_set = 0;
-  late Route path;
   List<NearbyResult> result = [];
+  late List<DirectionsRoute> paths;
+  late List<LatLng> coordVal;
+  late Line route;
+  List<SymbolOptions> symbols = [];
+  bool settings = false;
 
   Future<bool> getPermission() async {
     var permissionGranted = await location.hasPermission();
@@ -73,10 +78,29 @@ class InterfaceState extends State<UserInterface> {
         keyword: keyVal,
         location: locVal,
         sortBy: 'dist:asc',
+        radius: 10000,
       );
       var nearbyResponse = await nearbyVal.callNearby();
       setState(() {
         result = nearbyResponse!.suggestedLocations!;
+      });
+    } catch (e) {
+      if (e is PlatformException) {
+        Fluttertoast.showToast(msg: '${e.code} --- ${e.message}');
+      }
+    }
+  }
+
+  shortestRoute() async {
+    try {
+      var direction = MapmyIndiaDirection(
+        origin: locVal,
+        alternatives: true,
+        destinationELoc: result[0].eLoc,
+      );
+      var sol = await direction.callDirection();
+      setState(() {
+        paths = sol!.routes!;
       });
     } catch (e) {
       if (e is PlatformException) {
@@ -91,7 +115,7 @@ class InterfaceState extends State<UserInterface> {
     getLocation();
 
     MapmyIndiaAccountManager.setMapSDKKey(
-        "61c10a2f-2b32-40a0-9687-5061d5d3906b");
+        "ecdcba5f-dbad-4317-ab6c-d877e44eb750");
     MapmyIndiaAccountManager.setRestAPIKey("5c66fc4b5ccc180db4cadffb26728a9b");
     MapmyIndiaAccountManager.setAtlasClientId(
         "33OkryzDZsK9DTdogCoMiK7PumCEe4OkT32p2QG3R9oVkjqdy8tx74g_qqpUhrIygeu-xUrr0QLdUx-dhig2YWYWwT8PXV2P");
@@ -108,7 +132,7 @@ class InterfaceState extends State<UserInterface> {
           if (snapshot.hasData) {
             locVal =
                 LatLng(snapshot.data!.latitude!, snapshot.data!.longitude!);
-            zoomVal = 14.0;
+            zoomVal = 10.0;
             kid.add(
               MapmyIndiaMap(
                 initialCameraPosition: CameraPosition(
@@ -124,7 +148,7 @@ class InterfaceState extends State<UserInterface> {
               Container(
                 color: const Color.fromARGB(0, 1, 1, 1),
                 width: 50,
-                height: 100,
+                height: 150,
                 padding: const EdgeInsets.all(5),
                 child: Column(
                   children: [
@@ -132,13 +156,14 @@ class InterfaceState extends State<UserInterface> {
                       height: 40,
                       width: 40,
                       child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
+                            await controller.clearSymbols();
                             if (start_set == 0) {
-                              setState(() async {
-                                start_set = 1;
-                                start = await controller
-                                    .addSymbol(SymbolOptions(geometry: locVal));
+                              setState(() {
+                                symbols = [SymbolOptions(geometry: locVal)];
                               });
+
+                              await controller.addSymbols(symbols);
                             }
                           },
                           child: Icon(Icons.gps_fixed_sharp, size: 30),
@@ -155,11 +180,64 @@ class InterfaceState extends State<UserInterface> {
                       width: 40,
                       child: ElevatedButton(
                           onPressed: () async {
-                            nearby();
-                            print(result.length);
+                            await nearby();
+                            print(result[0].eLoc);
+                            await shortestRoute();
+                            Polyline polyline = Polyline.Decode(
+                                encodedString: paths[0].geometry, precision: 6);
+                            List<LatLng> coords = [];
+                            for (var x in polyline.decodedCoords!) {
+                              coords.add(LatLng(x[0], x[1]));
+                            }
+                            print(coords);
+                            print(coords[0].latitude);
+
+                            List<SymbolOptions> symbolList = [];
+                            symbolList.add(SymbolOptions(
+                                geometry: locVal, textField: 'Source'));
+                            symbolList.add(SymbolOptions(
+                                geometry: coords[coords.length - 1],
+                                textField: 'Destination'));
+
+                            setState(() {
+                              coordVal = coords;
+                              symbols = symbolList;
+                            });
+                            controller.clearSymbols();
+                            await controller.addSymbols(symbols);
+                            controller.clearLines();
+                            await controller.addLine(LineOptions(
+                                geometry: coords,
+                                lineColor: 'orange',
+                                lineWidth: 5));
+                            setState(() {
+                              zoomVal += 4;
+                            });
+                            controller.animateCamera(CameraUpdate.zoomBy(4));
+                            print(symbols[0].geometry!.latitude);
+                            print(symbols[0].geometry!.longitude);
+                            print(locVal.latitude);
+                            print(locVal.longitude);
+                            print('done');
                           },
                           child: Center(child: Text('123'))),
-                    )
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    SizedBox(
+                        height: 40,
+                        width: 40,
+                        child: ElevatedButton(
+                          child: Icon(
+                            Icons.settings,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              settings = true;
+                            });
+                          },
+                        ))
                   ],
                 ),
               ),

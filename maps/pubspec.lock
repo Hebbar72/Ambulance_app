@@ -69,6 +69,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.0.1"
+  flutter_logs:
+    dependency: "direct main"
+    description:
+      name: flutter_logs
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.1.7"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -177,6 +184,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.8.1"
+  platform:
+    dependency: transitive
+    description:
+      name: platform
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "3.1.0"
   plugin_platform_interface:
     dependency: transitive
     description:
